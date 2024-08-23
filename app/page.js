@@ -1,95 +1,101 @@
+"use client";
 import Image from "next/image";
-import styles from "./page.module.css";
+import getStripe from "@/utils/get-stripe";
+import { SignedIn, SignedOut, UserButton, useUser } from "@clerk/nextjs";
+import { AppBar, Button, Container, Toolbar, Typography, Box } from "@mui/material";
+import Head from 'next/head';
+import {useRouter} from 'next/navigation'
+
 
 export default function Home() {
+  const router = useRouter()
+  const { isSignedIn } = useUser();
+
+  const handleSubmit = async () => {
+    if (!isSignedIn) {
+      alert('You need to sign in to continue.');
+    }
+
+    const checkoutSession = await fetch('/api/checkout_sessions', {
+      method: 'POST',
+      headers: {
+        origin: 'http://localhost:3000'
+      },
+    })
+  
+    const chechoutSessionJson = await checkoutSession.json()
+    if (checkoutSession.statusCode === 500) {
+      console.error(checkoutSession.message)
+      return
+    }
+    const stripe = await getStripe()
+    const error = await stripe.redirectToCheckout({
+      sessionId: chechoutSessionJson.id,
+    })
+  
+    if (error) {
+      console.warn(error.message)
+    }
+  }
+
+  const handleGetStarted = () => {
+    if (isSignedIn) {
+      // If the user is signed in, show an alert
+      alert('You are already signed in. Please choose to subscribe or continue with the free version.');
+    } else {
+      // If the user is not signed in, navigate to the sign-up page
+      router.push('/sign-up');
+    }
+  };
+
+  const handleFreeVersion = () => {
+    if (isSignedIn) {
+      router.push('/generate')
+    } else {
+      alert('You need to sign in to continue.');
+    }
+  }
+
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>app/page.js</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <Container maxWidth="lg">
+      <Head>
+        <title>Flashcard Generator</title>
+        <meta name="description" content="Create Flash cards" />
+      </Head>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" style={{ flexGrow: 1 }}>Flashcard Generator</Typography>
+          <SignedOut>
+            <Button color="inherit" href="sign-in">Login</Button>
+            <Button color="inherit" href="sign-up">Sign up</Button>
+          </SignedOut>
+          <SignedIn>
+            <UserButton />
+          </SignedIn>
+        </Toolbar>
+      </AppBar>
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      <Box sx={{ textAlign: "center", my: 4 }}>
+        <Typography variant="h2">Welcome to flashcard generator</Typography>
+        <Typography variant="h5">Need help making flashcards? We're here to help</Typography>
+        <Button variant="contained" color="primary" sx={{ mt: 2 }} onClick={handleGetStarted}>Get Started</Button>
+      </Box>
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+      <Box
+        sx={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-between',
+          padding: 2,
+        }}
+      >
+        <Button variant="outlined" color="secondary" onClick={handleFreeVersion}>Use Free Version</Button>
+        <Button variant="contained" color="primary" onClick={handleSubmit}>Subscribe</Button>
+      </Box>
+    </Container>
   );
 }
